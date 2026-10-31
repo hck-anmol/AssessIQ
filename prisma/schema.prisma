@@ -1,0 +1,306 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  EXAMINER
+  EXAMINEE
+}
+
+enum ExamStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+enum QuestionType {
+  MCQ_SINGLE
+  MCQ_MULTI
+  FILL_BLANK
+  DESCRIPTIVE
+  TRUE_FALSE
+}
+
+enum AccessType {
+  GMAIL_FILTER
+  PASSWORD
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED
+  TIMED_OUT
+}
+
+enum PhotoStage {
+  BEFORE
+  MID
+  AFTER
+}
+
+enum FlagType {
+  FULLSCREEN_EXIT
+  TAB_SWITCH
+  PRINT_SCREEN
+  COPY_ATTEMPT
+  DEV_TOOLS
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role     @default(EXAMINEE)
+  college       String?
+  department    String?
+  year          Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+
+  // App relations
+  examsCreated  Exam[]    @relation("ExamCreator")
+  enrollments   ExamEnrollment[]
+  attempts      Attempt[]
+}
+
+// ─────────────────────────────────────────────
+// NEXTAUTH MODELS
+// ─────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// EXAM
+// ─────────────────────────────────────────────
+
+model Exam {
+  id          String     @id @default(cuid())
+  title       String
+  description String?    @db.Text
+  subject     String?
+  status      ExamStatus @default(DRAFT)
+
+  // Timing
+  startTime   DateTime?
+  endTime     DateTime?
+  durationMin Int        @default(60) // in minutes
+
+  // Creator
+  createdById String
+  createdBy   User   @relation("ExamCreator", fields: [createdById], references: [id])
+
+  // Access control
+  accessType        AccessType @default(GMAIL_FILTER)
+  allowedDomains    String[]   // e.g. ["@cs.college.edu"]
+  allowedEmails     String[]   // specific emails
+  allowedYear       Int?       // filter by year
+  allowedDepartment String?    // filter by department
+  password          String?    // for PASSWORD access type
+
+  // Behavior settings
+  allowBackNav      Boolean @default(false)
+  maxFlags          Int     @default(1) // violations before auto-submit
+  webcamEnabled     Boolean @default(true)
+  showScoreAfter    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  questions   Question[]
+  enrollments ExamEnrollment[]
+  attempts    Attempt[]
+}
+
+// ─────────────────────────────────────────────
+// QUESTION
+// ─────────────────────────────────────────────
+
+model Question {
+  id       String       @id @default(cuid())
+  examId   String
+  exam     Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type     QuestionType
+  content  String       @db.Text
+  order    Int
+
+  // For MCQ: array of option strings
+  options  Json?        // string[]
+
+  // For MCQ_SINGLE / TRUE_FALSE: the correct option index
+  // For MCQ_MULTI: array of correct option indices
+  // For FILL_BLANK: the correct answer string
+  // For DESCRIPTIVE: null (manual grading)
+  correctAnswer Json?
+
+  marks       Int @default(1)
+  negMarks    Int @default(0) // negative marking
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers Answer[]
+
+  @@index([examId, order])
+}
+
+// ─────────────────────────────────────────────
+// EXAM ENROLLMENT
+// ─────────────────────────────────────────────
+
+model ExamEnrollment {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enrolledAt DateTime @default(now())
+
+  @@unique([examId, userId])
+}
+
+// ─────────────────────────────────────────────
+// ATTEMPT
+// ─────────────────────────────────────────────
+
+model Attempt {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  status      AttemptStatus @default(IN_PROGRESS)
+  flagCount   Int           @default(0)
+  startedAt   DateTime      @default(now())
+  submittedAt DateTime?
+
+  // Score (computed after submission)
+  score       Float?
+  totalMarks  Float?
+
+  answers Answer[]
+  flags   Flag[]
+  photos  Photo[]
+
+  @@unique([examId, userId])
+  @@index([examId])
+}
+
+// ─────────────────────────────────────────────
+// ANSWER
+// ─────────────────────────────────────────────
+
+model Answer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+
+  // The student's response (JSON to support MCQ arrays, text, etc.)
+  response   Json?
+
+  // Time tracking
+  timeSpentMs Int   @default(0)   // total ms spent on this question
+  visitCount  Int   @default(0)   // how many times the student visited
+
+  // Array of {enteredAt, leftAt} timestamps for each visit
+  timestamps  Json? // {visits: [{enteredAt: string, leftAt: string}]}
+
+  // Auto-scored (null for descriptive)
+  isCorrect   Boolean?
+  marksAwarded Float?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([attemptId, questionId])
+}
+
+// ─────────────────────────────────────────────
+// FLAG (Violation)
+// ─────────────────────────────────────────────
+
+model Flag {
+  id        String   @id @default(cuid())
+  attemptId String
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  type      FlagType
+  details   String?  // extra context
+  createdAt DateTime @default(now())
+
+  @@index([attemptId])
+}
+
+// ─────────────────────────────────────────────
+// PHOTO (Proctoring)
+// ─────────────────────────────────────────────
+
+model Photo {
+  id        String     @id @default(cuid())
+  attemptId String
+  attempt   Attempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  stage     PhotoStage
+  url       String     // Supabase Storage URL
+  takenAt   DateTime   @default(now())
+
+  @@index([attemptId])
+}
