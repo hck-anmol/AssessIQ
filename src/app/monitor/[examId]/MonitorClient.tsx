@@ -2,7 +2,19 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { formatMs } from "@/lib/utils";
+import {
+  ArrowLeft,
+  RefreshCw,
+  Download,
+  Square,
+  AlertTriangle,
+  Users,
+  ShieldAlert,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  UserX,
+} from "lucide-react";
 
 interface Flag {
   id: string;
@@ -63,7 +75,7 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
 
   const handleTerminate = async (attemptId: string, studentName: string) => {
     const confirmed = window.confirm(
-      `Are you sure you want to force-submit and disqualify ${studentName}? This cannot be undone.`
+      `Confirm forced disqualification for examinee: ${studentName}? This action cannot be revoked.`
     );
     if (!confirmed) return;
 
@@ -72,7 +84,7 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
       const res = await fetch(`/api/attempts/${attemptId}/terminate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Disqualified by examiner during live proctoring" }),
+        body: JSON.stringify({ reason: "Disqualified by proctor during live session" }),
       });
       if (res.ok) {
         await fetchLatest();
@@ -87,7 +99,7 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
 
   const handleEndExam = async () => {
     const confirmed = window.confirm(
-      "Are you sure you want to conclude and END this exam? No further examinee activity will be accepted."
+      "Are you sure you want to conclude and end this live session? All active examinations will cease."
     );
     if (!confirmed) return;
 
@@ -99,7 +111,6 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
       });
       if (res.ok) {
         setExam((prev) => ({ ...prev, status: "ENDED" }));
-        alert("Exam has been marked as ENDED.");
       }
     } catch {
       alert("Failed to end exam.");
@@ -107,7 +118,6 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
   };
 
   useEffect(() => {
-    // Poll every 5 seconds for live status & violations
     const interval = setInterval(fetchLatest, 5000);
     return () => clearInterval(interval);
   }, [fetchLatest]);
@@ -125,56 +135,60 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Top Bar */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 sticky top-0 z-20">
+      <header className="bg-white border-b border-slate-200 px-6 py-3.5 sticky top-0 z-20 shadow-2xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href={`/exams/${exam.id}`}
-              className="text-slate-400 hover:text-white transition text-sm flex items-center gap-1"
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition flex items-center gap-1 text-xs font-medium"
             >
-              ← Manage Exam
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
             </Link>
-            <div className="h-4 w-px bg-slate-800" />
+            <div className="h-4 w-px bg-slate-200" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                <h1 className="font-bold text-lg">{exam.title}</h1>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
-                  LIVE MONITOR
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h1 className="font-bold text-base text-slate-900 tracking-tight">{exam.title}</h1>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider">
+                  Live Proctoring
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Max violations allowed: {exam.maxFlags} • Auto-refreshes every 5s
+              <p className="text-[11px] text-slate-500">
+                Tolerance: {exam.maxFlags} warning(s) • Live sync active
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-slate-500 hidden sm:inline">
-              Updated: {lastUpdated.toLocaleTimeString()}
+          <div className="flex items-center gap-2.5 text-xs">
+            <span className="text-slate-400 hidden md:inline text-[11px]">
+              Last synced: {lastUpdated.toLocaleTimeString()}
             </span>
             <a
               href={`/api/exams/${exam.id}/export`}
-              className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition flex items-center gap-1 font-medium"
+              className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition flex items-center gap-1 font-semibold shadow-2xs"
             >
-              📥 Export CSV
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
             </a>
             {exam.status === "LIVE" && (
               <button
                 onClick={handleEndExam}
-                className="px-3 py-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-300 hover:bg-rose-600/30 transition flex items-center gap-1 font-medium"
+                className="px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition flex items-center gap-1 font-semibold shadow-2xs"
               >
-                ⏹️ End Exam
+                <Square className="w-3.5 h-3.5" />
+                <span>End Exam</span>
               </button>
             )}
             <button
               onClick={fetchLatest}
               disabled={isRefreshing}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 transition disabled:opacity-50"
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition disabled:opacity-50"
+              title="Refresh status"
             >
-              {isRefreshing ? "…" : "🔄 Refresh"}
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
             </button>
           </div>
         </div>
@@ -183,35 +197,35 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">Active Now</p>
-            <p className="text-2xl font-bold text-emerald-400">{inProgressCount}</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+            <p className="text-slate-500 text-xs font-medium mb-1">Active Examinees</p>
+            <p className="text-2xl font-bold text-emerald-600">{inProgressCount}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">Total Attempts</p>
-            <p className="text-2xl font-bold">{attempts.length}</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+            <p className="text-slate-500 text-xs font-medium mb-1">Total Registered</p>
+            <p className="text-2xl font-bold text-slate-900">{attempts.length}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">Violations Detected</p>
-            <p className="text-2xl font-bold text-amber-400">{flaggedCount}</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+            <p className="text-slate-500 text-xs font-medium mb-1">Violations Logged</p>
+            <p className="text-2xl font-bold text-amber-600">{flaggedCount}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">Auto-Submitted (Disqualified)</p>
-            <p className="text-2xl font-bold text-rose-500">{autoSubmittedCount}</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+            <p className="text-slate-500 text-xs font-medium mb-1">Disqualified / Auto-Submitted</p>
+            <p className="text-2xl font-bold text-rose-600">{autoSubmittedCount}</p>
           </div>
         </div>
 
         {/* Filter Pills */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-xs text-slate-400 mr-2">Filter:</span>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">Roster:</span>
           {(["ALL", "IN_PROGRESS", "FLAGGED", "SUBMITTED"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setFilter(mode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 filter === mode
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               {mode.replace("_", " ")}
@@ -221,9 +235,12 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
 
         {/* Examinee Live Cards */}
         {filteredAttempts.length === 0 ? (
-          <div className="text-center py-20 bg-slate-900/40 border border-slate-800/80 rounded-2xl">
-            <p className="text-3xl mb-2">👥</p>
-            <p className="text-slate-400 text-sm">No examinees matching filter.</p>
+          <div className="text-center py-20 bg-white border border-slate-200 rounded-2xl shadow-xs">
+            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+              <Users className="w-5 h-5" />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">No examinees in selected segment</p>
+            <p className="text-xs text-slate-400 mt-0.5">Adjust filter options to view active or submitted records.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -235,35 +252,35 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
               return (
                 <div
                   key={attempt.id}
-                  className={`bg-slate-900 border rounded-xl p-5 transition flex flex-col justify-between ${
+                  className={`bg-white border rounded-2xl p-5 transition flex flex-col justify-between shadow-2xs hover:shadow-xs ${
                     isAuto
-                      ? "border-rose-500/40 bg-rose-950/10"
+                      ? "border-rose-300 bg-rose-50/20"
                       : hasFlags
-                      ? "border-amber-500/40 bg-amber-950/10"
-                      : "border-slate-800"
+                      ? "border-amber-300 bg-amber-50/20"
+                      : "border-slate-200"
                   }`}
                 >
                   <div>
                     {/* Header */}
-                    <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start justify-between gap-3 mb-3 border-b border-slate-100 pb-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">
-                          {attempt.user.name || "Student"}
+                        <p className="font-bold text-sm text-slate-900 truncate">
+                          {attempt.user.name || "Student Examinee"}
                         </p>
-                        <p className="text-xs text-slate-400 truncate">{attempt.user.email}</p>
+                        <p className="text-xs text-slate-500 truncate">{attempt.user.email}</p>
                         {attempt.user.college && (
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                            {attempt.user.college}{attempt.user.department ? ` • ${attempt.user.department}` : ""}{attempt.user.year ? ` • Year ${attempt.user.year}` : ""}
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {attempt.user.college} • {attempt.user.department || "General"}
                           </p>
                         )}
                       </div>
                       <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium border flex-shrink-0 ${
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border flex-shrink-0 ${
                           isLive
-                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : isAuto
-                            ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                            : "bg-slate-700/30 text-slate-400 border-slate-700"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
                         }`}
                       >
                         {attempt.status.replace("_", " ")}
@@ -271,16 +288,16 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
                     </div>
 
                     {/* Flags / Alerts */}
-                    <div className="space-y-1.5 mb-4">
+                    <div className="space-y-2 mb-4">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Violation Count:</span>
+                        <span className="text-slate-500 font-medium">Recorded Infractions:</span>
                         <span
-                          className={`font-semibold ${
+                          className={`font-bold ${
                             attempt.flagCount >= exam.maxFlags
-                              ? "text-rose-400"
+                              ? "text-rose-600"
                               : attempt.flagCount > 0
-                              ? "text-amber-400"
-                              : "text-emerald-400"
+                              ? "text-amber-600"
+                              : "text-emerald-700"
                           }`}
                         >
                           {attempt.flagCount} / {exam.maxFlags}
@@ -288,16 +305,21 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
                       </div>
 
                       {attempt.flags.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-[11px] text-slate-400 font-medium">Recent Flags:</p>
+                        <div className="mt-2 space-y-1 bg-rose-50/70 p-2.5 rounded-xl border border-rose-100">
+                          <p className="text-[10px] uppercase font-bold text-rose-700 tracking-wider">
+                            Latest Security Events:
+                          </p>
                           <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                             {attempt.flags.slice(0, 3).map((flag) => (
                               <div
                                 key={flag.id}
-                                className="text-[11px] bg-slate-800/80 px-2 py-1 rounded text-rose-300 flex items-center justify-between"
+                                className="text-[11px] text-rose-900 flex items-center justify-between"
                               >
-                                <span>⚠️ {flag.type.replace(/_/g, " ")}</span>
-                                <span className="text-slate-500 text-[10px]">
+                                <span className="flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                  <span>{flag.type.replace(/_/g, " ")}</span>
+                                </span>
+                                <span className="text-slate-400 text-[10px] font-mono">
                                   {new Date(flag.createdAt).toLocaleTimeString([], {
                                     minute: "2-digit",
                                     second: "2-digit",
@@ -312,8 +334,8 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500">
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-slate-400">
                       Started: {new Date(attempt.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                     <div className="flex items-center gap-2">
@@ -321,16 +343,18 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
                         <button
                           onClick={() => handleTerminate(attempt.id, attempt.user.name || attempt.user.email)}
                           disabled={terminatingId === attempt.id}
-                          className="px-2.5 py-1 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800 text-xs text-rose-300 transition disabled:opacity-50"
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition disabled:opacity-50 flex items-center gap-1 shadow-2xs"
                         >
-                          {terminatingId === attempt.id ? "Stopping…" : "⚠️ Disqualify"}
+                          <UserX className="w-3 h-3 text-rose-600" />
+                          <span>{terminatingId === attempt.id ? "Stopping…" : "Disqualify"}</span>
                         </button>
                       )}
                       <Link
                         href={`/exams/${exam.id}/report/${attempt.id}`}
-                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition"
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition flex items-center gap-1 shadow-2xs"
                       >
-                        View Report →
+                        <span>Audit</span>
+                        <ArrowRight className="w-3 h-3 text-slate-400" />
                       </Link>
                     </div>
                   </div>
@@ -343,4 +367,3 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
     </div>
   );
 }
-

@@ -148,8 +148,9 @@ model Exam {
 
   // Access control
   accessType        AccessType @default(GMAIL_FILTER)
-  allowedDomains    String[]   // e.g. ["@cs.college.edu"]
+  allowedDomains    String[]   // e.g. ["@cs.college.edu", "iiitvadodara.ac.in"]
   allowedEmails     String[]   // specific emails
+  allowedEmailPrefixes String[] @default([]) // e.g. ["2024"] for batch filtering (e.g. 202451019@iiitvadodara.ac.in)
   allowedYear       Int?       // filter by year
   allowedDepartment String?    // filter by department
   password          String?    // for PASSWORD access type
@@ -164,9 +165,10 @@ model Exam {
   updatedAt DateTime @updatedAt
 
   // Relations
-  questions   Question[]
-  enrollments ExamEnrollment[]
-  attempts    Attempt[]
+  questions     Question[]
+  enrollments   ExamEnrollment[]
+  attempts      Attempt[]
+  notifications ExamNotification[]
 }
 
 // ─────────────────────────────────────────────
@@ -193,12 +195,32 @@ model Question {
   marks       Int @default(1)
   negMarks    Int @default(0) // negative marking
 
+  isRevised      Boolean  @default(false)
+  revisionNotice String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   answers Answer[]
 
   @@index([examId, order])
+}
+
+// ─────────────────────────────────────────────
+// EXAM NOTIFICATION (Live Proctoring & Clarifications)
+// ─────────────────────────────────────────────
+
+model ExamNotification {
+  id         String   @id @default(cuid())
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionId String?
+  type       String   @default("QUESTION_UPDATED")
+  title      String
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([examId, createdAt])
 }
 
 // ─────────────────────────────────────────────

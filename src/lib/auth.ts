@@ -1,82 +1,101 @@
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { auth as clerkAuth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "placeholder-google-client-id",
-      clientSecret:
-        process.env.GOOGLE_CLIENT_SECRET || "placeholder-google-client-secret",
-    }),
-    CredentialsProvider({
-      id: "demo-login",
-      name: "Demo Account",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        role: { label: "Role", type: "text" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) return null;
-        const email = String(credentials.email).toLowerCase();
-        const role = (credentials.role === "EXAMINER" ? "EXAMINER" : "EXAMINEE") as Role;
+// Designated teacher emails. Only these emails get the EXAMINER role.
+export const TEACHER_EMAILS = [
+  "anmolkrjha006@gmail.com",
+  "gauriborse1808@gmail.com",
+].map((e) => e.toLowerCase().trim());
 
-        let user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email,
-              name: role === "EXAMINER" ? "Prof. Smith (Examiner)" : "Alex Doe (Student)",
-              role,
-              college: "College of Engineering",
-              department: "Computer Science",
-              year: 2,
-            },
-          });
-        }
-        return user;
+export function isTeacherEmail(email: string): boolean {
+  return TEACHER_EMAILS.includes(email.toLowerCase().trim());
+}
+
+export interface SessionUser {
+  id: string;
+  name: string | null;
+  email: string;
+  role: Role;
+  college?: string | null;
+  department?: string | null;
+  year?: number | null;
+  image?: string | null;
+}
+
+export interface Session {
+  user: SessionUser;
+}
+
+/**
+ * Resolves the authenticated session via Clerk and syncs with the Prisma User record.
+ */
+export async function auth(): Promise<Session | null> {
+  try {
+    const { userId: clerkId } = await clerkAuth();
+    if (!clerkId) {
+      return null;
+    }
+
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
+      return null;
+    }
+
+    const email = (
+      clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
+      clerkUser.emailAddresses[0]?.emailAddress
+    )?.toLowerCase().trim();
+
+    if (!email) {
+      return null;
+    }
+
+    // Determine role strictly based on whitelist
+    const expectedRole: Role = isTeacherEmail(email) ? "EXAMINER" : "EXAMINEE";
+
+    // Lookup user in Prisma DB by Clerk ID or by email
+    let dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ id: clerkId }, { email }],
       },
-    }),
-  ],
-  session: {
-    strategy: "jwt",
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        // First sign-in: fetch role from DB
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-          select: { id: true, role: true },
-        });
-        token.id = dbUser?.id ?? user.id;
-        token.role = dbUser?.role ?? "EXAMINEE";
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/sign-in",
-    newUser: "/onboarding",
-  },
-  events: {
-    async createUser({ user }) {
-      // Auto-create user with EXAMINEE role on first sign-in
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: "EXAMINEE" },
+    });
+
+    if (!dbUser) {
+      dbUser = await prisma.user.create({
+        data: {
+          id: clerkId,
+          email,
+          name:
+            `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+            clerkUser.username ||
+            email,
+          image: clerkUser.imageUrl,
+          role: expectedRole,
+        },
       });
-    },
-  },
-});
+    } else if (dbUser.role !== expectedRole) {
+      // Keep database role in strict sync with assigned whitelist
+      dbUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: { role: expectedRole },
+      });
+    }
+
+    return {
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        role: dbUser.role,
+        college: dbUser.college,
+        department: dbUser.department,
+        year: dbUser.year,
+        image: dbUser.image,
+      },
+    };
+  } catch (err) {
+    console.error("Clerk auth resolution error:", err);
+    return null;
+  }
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, isTeacherEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -23,11 +23,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { role, college, department, year } = parsed.data;
+  const { college, department, year } = parsed.data;
+
+  // Determine role strictly based on teacher email whitelist
+  const isTeacher = session.user.email ? isTeacherEmail(session.user.email) : false;
+  const enforcedRole = isTeacher ? "EXAMINER" : "EXAMINEE";
 
   const user = await prisma.user.update({
     where: { id: session.user.id },
-    data: { role, college, department, year },
+    data: {
+      role: enforcedRole,
+      college,
+      department,
+      year: enforcedRole === "EXAMINEE" ? year : null,
+    },
   });
 
   return NextResponse.json({ user });

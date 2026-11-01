@@ -1,13 +1,15 @@
 "use client";
 
+import { Printer } from "lucide-react";
+
 export function PrintReportButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium transition flex items-center gap-1.5 print:hidden"
+      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition shadow-xs print:hidden"
     >
-      🖨️ Print / Save as PDF
+      <Printer className="w-4 h-4 text-slate-500" />
+      <span>Print / Save as PDF</span>
     </button>
   );
 }
-

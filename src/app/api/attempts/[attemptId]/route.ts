@@ -141,8 +141,35 @@ export async function POST(
       isCorrect = JSON.stringify(studentAns) === JSON.stringify(correct);
     } else if (question.type === "FILL_BLANK") {
       const studentAns = String(ansData.response ?? "").trim().toLowerCase();
-      const correct = String(question.correctAnswer ?? "").trim().toLowerCase();
-      isCorrect = Boolean(studentAns && correct && studentAns === correct);
+      let acceptableAnswers: string[] = [];
+
+      const rawCorrect = question.correctAnswer;
+      if (Array.isArray(rawCorrect)) {
+        acceptableAnswers = rawCorrect
+          .map((a) => String(a).trim().toLowerCase())
+          .filter(Boolean);
+      } else if (typeof rawCorrect === "string") {
+        try {
+          const parsed = JSON.parse(rawCorrect);
+          if (Array.isArray(parsed)) {
+            acceptableAnswers = parsed
+              .map((a) => String(a).trim().toLowerCase())
+              .filter(Boolean);
+          } else {
+            acceptableAnswers = rawCorrect
+              .split(",")
+              .map((a) => a.trim().toLowerCase())
+              .filter(Boolean);
+          }
+        } catch {
+          acceptableAnswers = rawCorrect
+            .split(",")
+            .map((a) => a.trim().toLowerCase())
+            .filter(Boolean);
+        }
+      }
+
+      isCorrect = Boolean(studentAns && acceptableAnswers.includes(studentAns));
     }
 
     const marksAwarded = isCorrect ? question.marks : -(question.negMarks ?? 0);

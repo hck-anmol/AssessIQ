@@ -13,6 +13,7 @@ const createExamSchema = z.object({
   accessType: z.enum(["GMAIL_FILTER", "PASSWORD"]),
   allowedDomains: z.array(z.string()).default([]),
   allowedEmails: z.array(z.string().email()).default([]),
+  allowedEmailPrefixes: z.array(z.string()).default([]),
   allowedYear: z.number().int().min(1).max(5).nullable().optional(),
   allowedDepartment: z.string().nullable().optional(),
   password: z.string().nullable().optional(),
@@ -67,9 +68,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const normalizedDomains = parsed.data.allowedDomains.map((d) =>
+    d.trim().toLowerCase().replace(/^@/, "")
+  ).filter(Boolean);
+
+  const normalizedPrefixes = parsed.data.allowedEmailPrefixes.map((p) =>
+    p.trim().toLowerCase()
+  ).filter(Boolean);
+
   const exam = await prisma.exam.create({
     data: {
       ...parsed.data,
+      allowedDomains: normalizedDomains,
+      allowedEmailPrefixes: normalizedPrefixes,
       createdById: session.user.id,
       status: "DRAFT",
     },

@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { ShieldCheck, GraduationCap, UserCheck, ArrowRight, Building, BookOpen } from "lucide-react";
+
+const TEACHER_EMAILS = [
+  "anmolkrjha006@gmail.com",
+  "gauriborse1808@gmail.com",
+];
 
 const departments = [
   "Computer Science",
@@ -21,10 +27,18 @@ const departments = [
 const years = [1, 2, 3, 4, 5];
 
 export default function OnboardingPage() {
-  const { data: session, update } = useSession();
+  const { user } = useUser();
   const router = useRouter();
 
-  const [role, setRole] = useState<"EXAMINER" | "EXAMINEE">("EXAMINEE");
+  const userEmail = (
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    ""
+  ).toLowerCase().trim();
+
+  const isTeacher = TEACHER_EMAILS.includes(userEmail);
+  const role: "EXAMINER" | "EXAMINEE" = isTeacher ? "EXAMINER" : "EXAMINEE";
+
   const [college, setCollege] = useState("");
   const [department, setDepartment] = useState("");
   const [year, setYear] = useState<number>(1);
@@ -41,7 +55,6 @@ export default function OnboardingPage() {
     });
 
     if (res.ok) {
-      await update({ role });
       router.push(role === "EXAMINER" ? "/dashboard/examiner" : "/dashboard/student");
     } else {
       setLoading(false);
@@ -50,82 +63,108 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white px-4">
+    <main className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-900 px-4 py-12">
       <div className="w-full max-w-lg">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm shadow-xl">
-          <h1 className="text-2xl font-bold text-center mb-1">
-            Welcome, {session?.user?.name?.split(" ")[0]}! 👋
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 font-bold text-xl tracking-tight text-slate-900">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <span>
+              Assess<span className="text-blue-600">IQ</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 text-center mb-1">
+            Complete Profile Verification
           </h1>
-          <p className="text-slate-400 text-center text-sm mb-8">
-            Tell us a bit about yourself to get started.
+          <p className="text-slate-500 text-xs text-center mb-8">
+            Please associate your account with your academic institution.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Role selection */}
+            {/* Assigned Role Display */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                I am a...
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                Assigned Role
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["EXAMINER", "EXAMINEE"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`py-3 rounded-xl border font-medium transition-all ${
-                      role === r
-                        ? "bg-blue-500 border-blue-400 text-white"
-                        : "bg-white/5 border-white/10 text-slate-300 hover:border-white/30"
-                    }`}
-                  >
-                    {r === "EXAMINER" ? "👨‍🏫 Examiner" : "👩‍🎓 Student"}
-                  </button>
-                ))}
+              <div className="py-3 px-4 rounded-xl border border-blue-200 bg-blue-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    {isTeacher ? (
+                      <GraduationCap className="w-5 h-5" />
+                    ) : (
+                      <UserCheck className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {isTeacher ? "Examiner / Faculty" : "Examinee / Student"}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {isTeacher
+                        ? "Designated Examiner Account"
+                        : "Candidate / Student Account"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                  {role}
+                </span>
               </div>
             </div>
 
             {/* College */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                College / Institution
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                College or University
               </label>
-              <input
-                type="text"
-                required
-                value={college}
-                onChange={(e) => setCollege(e.target.value)}
-                placeholder="e.g. IIT Bombay"
-                className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 transition"
-              />
+              <div className="relative">
+                <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  required
+                  value={college}
+                  onChange={(e) => setCollege(e.target.value)}
+                  placeholder="e.g. Stanford University"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition"
+                />
+              </div>
             </div>
 
             {/* Department */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Department
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                Department / Faculty
               </label>
-              <select
-                required
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/10 text-white focus:outline-none focus:border-blue-400 transition"
-              >
-                <option value="" disabled>
-                  Select department
-                </option>
-                {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+              <div className="relative">
+                <BookOpen className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <select
+                  required
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition"
+                >
+                  <option value="" disabled>
+                    Select academic department
                   </option>
-                ))}
-              </select>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Year (only for students) */}
             {role === "EXAMINEE" && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Year of Study
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                  Academic Year
                 </label>
                 <div className="flex gap-2">
                   {years.map((y) => (
@@ -133,13 +172,13 @@ export default function OnboardingPage() {
                       key={y}
                       type="button"
                       onClick={() => setYear(y)}
-                      className={`flex-1 py-2 rounded-lg border font-medium transition-all text-sm ${
+                      className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition ${
                         year === y
-                          ? "bg-blue-500 border-blue-400 text-white"
-                          : "bg-white/5 border-white/10 text-slate-300 hover:border-white/30"
+                          ? "bg-blue-600 border-blue-600 text-white"
+                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {y}
+                      Year {y}
                     </button>
                   ))}
                 </div>
@@ -149,9 +188,10 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={loading || !college || !department}
-              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all duration-200"
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition flex items-center justify-center gap-2 shadow-xs"
             >
-              {loading ? "Setting up your account..." : "Complete Setup →"}
+              <span>{loading ? "Registering Profile…" : "Confirm Profile"}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         </div>
