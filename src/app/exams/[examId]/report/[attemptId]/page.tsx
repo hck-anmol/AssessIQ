@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { formatMs } from "@/lib/utils";
+import { PrintReportButton } from "./PrintReportButton";
 
 interface PageProps {
   params: Promise<{ examId: string; attemptId: string }>;
@@ -41,10 +42,13 @@ export default async function AttemptReportPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center gap-4">
-          <Link href={`/exams/${examId}`} className="text-slate-400 hover:text-white transition">← Back to Exam</Link>
-          <h1 className="font-bold">Attempt Report</h1>
+      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 print:border-b-2 print:border-slate-300">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href={`/exams/${examId}`} className="text-slate-400 hover:text-white transition print:hidden">← Back to Exam</Link>
+            <h1 className="font-bold">Attempt Report</h1>
+          </div>
+          <PrintReportButton />
         </div>
       </header>
 

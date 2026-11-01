@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -118,14 +116,9 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
 
@@ -139,4 +132,30 @@
 .exam-mode textarea {
   user-select: text;
   -webkit-user-select: text;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .bg-slate-900,
+  .bg-slate-950 {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+  .text-white {
+    color: #0f172a !important;
+  }
+  .text-slate-400,
+  .text-slate-500 {
+    color: #475569 !important;
+  }
+  .border-slate-800 {
+    border-color: #e2e8f0 !important;
+  }
 }

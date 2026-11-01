@@ -139,6 +139,10 @@ export async function POST(
       const studentAns = (ansData.response as number[]).slice().sort();
       const correct = ((question.correctAnswer ?? []) as number[]).slice().sort();
       isCorrect = JSON.stringify(studentAns) === JSON.stringify(correct);
+    } else if (question.type === "FILL_BLANK") {
+      const studentAns = String(ansData.response ?? "").trim().toLowerCase();
+      const correct = String(question.correctAnswer ?? "").trim().toLowerCase();
+      isCorrect = Boolean(studentAns && correct && studentAns === correct);
     }
 
     const marksAwarded = isCorrect ? question.marks : -(question.negMarks ?? 0);

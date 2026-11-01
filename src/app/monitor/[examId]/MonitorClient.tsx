@@ -41,6 +41,7 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
   const [filter, setFilter] = useState<"ALL" | "IN_PROGRESS" | "FLAGGED" | "SUBMITTED">("ALL");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [terminatingId, setTerminatingId] = useState<string | null>(null);
 
   const fetchLatest = useCallback(async () => {
     try {
@@ -59,6 +60,51 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
       setIsRefreshing(false);
     }
   }, [exam.id]);
+
+  const handleTerminate = async (attemptId: string, studentName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to force-submit and disqualify ${studentName}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setTerminatingId(attemptId);
+    try {
+      const res = await fetch(`/api/attempts/${attemptId}/terminate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Disqualified by examiner during live proctoring" }),
+      });
+      if (res.ok) {
+        await fetchLatest();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to terminate attempt");
+      }
+    } finally {
+      setTerminatingId(null);
+    }
+  };
+
+  const handleEndExam = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to conclude and END this exam? No further examinee activity will be accepted."
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/exams/${exam.id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ENDED" }),
+      });
+      if (res.ok) {
+        setExam((prev) => ({ ...prev, status: "ENDED" }));
+        alert("Exam has been marked as ENDED.");
+      }
+    } catch {
+      alert("Failed to end exam.");
+    }
+  };
 
   useEffect(() => {
     // Poll every 5 seconds for live status & violations
@@ -105,16 +151,30 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-slate-500">
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-slate-500 hidden sm:inline">
               Updated: {lastUpdated.toLocaleTimeString()}
             </span>
+            <a
+              href={`/api/exams/${exam.id}/export`}
+              className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition flex items-center gap-1 font-medium"
+            >
+              📥 Export CSV
+            </a>
+            {exam.status === "LIVE" && (
+              <button
+                onClick={handleEndExam}
+                className="px-3 py-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-300 hover:bg-rose-600/30 transition flex items-center gap-1 font-medium"
+              >
+                ⏹️ End Exam
+              </button>
+            )}
             <button
               onClick={fetchLatest}
               disabled={isRefreshing}
               className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 transition disabled:opacity-50"
             >
-              {isRefreshing ? "Refreshing…" : "🔄 Refresh"}
+              {isRefreshing ? "…" : "🔄 Refresh"}
             </button>
           </div>
         </div>
@@ -256,12 +316,23 @@ export function MonitorClient({ initialExam }: { initialExam: ExamData }) {
                     <span className="text-[11px] text-slate-500">
                       Started: {new Date(attempt.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
-                    <Link
-                      href={`/exams/${exam.id}/report/${attempt.id}`}
-                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition"
-                    >
-                      View Report →
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      {isLive && (
+                        <button
+                          onClick={() => handleTerminate(attempt.id, attempt.user.name || attempt.user.email)}
+                          disabled={terminatingId === attempt.id}
+                          className="px-2.5 py-1 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800 text-xs text-rose-300 transition disabled:opacity-50"
+                        >
+                          {terminatingId === attempt.id ? "Stopping…" : "⚠️ Disqualify"}
+                        </button>
+                      )}
+                      <Link
+                        href={`/exams/${exam.id}/report/${attempt.id}`}
+                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition"
+                      >
+                        View Report →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );

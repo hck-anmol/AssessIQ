@@ -26,11 +26,18 @@ export async function POST(
 
   const attempt = await prisma.attempt.findFirst({
     where: { id: attemptId, userId: session.user.id },
-    select: { id: true, flagCount: true, exam: { select: { maxFlags: true } } },
+    select: { id: true, status: true, flagCount: true, exam: { select: { maxFlags: true } } },
   });
 
   if (!attempt) {
     return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
+  }
+
+  if (attempt.status !== "IN_PROGRESS") {
+    return NextResponse.json(
+      { error: "Attempt is already completed", status: attempt.status },
+      { status: 400 }
+    );
   }
 
   const { type, details } = parsed.data;

@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { formatDuration, formatMs } from "@/lib/utils";
-import { PublishButton } from "./PublishButton";
+import { ExamStatusActions } from "./PublishButton";
 
 interface PageProps {
   params: Promise<{ examId: string }>;
@@ -53,8 +53,13 @@ export default async function ExamManagePage({ params }: PageProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {exam.status === "DRAFT" && (
-              <PublishButton examId={exam.id} />
+            {exam.attempts.length > 0 && (
+              <a
+                href={`/api/exams/${exam.id}/export`}
+                className="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 text-sm hover:bg-blue-600/30 transition flex items-center gap-1"
+              >
+                📥 Export CSV
+              </a>
             )}
             {exam.status === "LIVE" && (
               <Link href={`/monitor/${exam.id}`} className="px-3 py-1.5 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-sm hover:bg-green-600/30 transition">
@@ -153,12 +158,28 @@ export default async function ExamManagePage({ params }: PageProps) {
             </div>
           </div>
 
-          {exam.status === "DRAFT" && (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-              <h3 className="font-semibold text-sm mb-3">Actions</h3>
-              <PublishButton examId={exam.id} />
-            </div>
-          )}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <h3 className="font-semibold text-sm">Status & Actions</h3>
+            <ExamStatusActions examId={exam.id} status={exam.status} />
+
+            {exam.status === "LIVE" && (
+              <Link
+                href={`/monitor/${exam.id}`}
+                className="block w-full text-center px-4 py-2 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-sm font-medium hover:bg-green-600/30 transition"
+              >
+                🔴 Open Live Monitor
+              </Link>
+            )}
+
+            {exam.attempts.length > 0 && (
+              <a
+                href={`/api/exams/${exam.id}/export`}
+                className="block w-full text-center px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm font-medium transition"
+              >
+                📥 Download Results (.csv)
+              </a>
+            )}
+          </div>
         </div>
       </main>
     </div>

@@ -195,20 +195,20 @@ export function ExamShell({
         userSelect: "none",
       }}
     >
-      {/* Watermark overlay */}
+      {/* Dynamic Security Watermark Overlay */}
       <div
-        className="fixed inset-0 pointer-events-none z-0 opacity-5"
+        className="fixed inset-0 pointer-events-none z-50 select-none overflow-hidden flex flex-wrap gap-14 p-6 items-center justify-around opacity-[0.04]"
         aria-hidden="true"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 100px,
-            rgba(255,255,255,0.03) 100px,
-            rgba(255,255,255,0.03) 200px
-          )`,
-        }}
-      />
+      >
+        {Array.from({ length: 24 }).map((_, i) => (
+          <div
+            key={i}
+            className="transform -rotate-45 text-xs md:text-sm font-mono tracking-widest text-white whitespace-nowrap"
+          >
+            AssessIQ • ID: {attemptId.slice(0, 8)} • PROCTORED
+          </div>
+        ))}
+      </div>
 
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 z-10">

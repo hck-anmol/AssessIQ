@@ -59,6 +59,41 @@ function SignInContent() {
             Continue with Google
           </button>
 
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">
+              Or Quick Test
+            </span>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() =>
+                signIn("demo-login", {
+                  email: "examiner@college.edu",
+                  role: "EXAMINER",
+                  callbackUrl: "/dashboard/examiner",
+                })
+              }
+              className="px-3 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-medium transition flex items-center justify-center gap-1.5"
+            >
+              🎓 Login as Examiner
+            </button>
+            <button
+              onClick={() =>
+                signIn("demo-login", {
+                  email: "student@college.edu",
+                  role: "EXAMINEE",
+                  callbackUrl: "/dashboard/student",
+                })
+              }
+              className="px-3 py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition flex items-center justify-center gap-1.5"
+            >
+              🎒 Login as Student
+            </button>
+          </div>
+
           <p className="text-slate-500 text-xs text-center mt-6">
             By signing in, you agree to our{" "}
             <span className="text-blue-400 cursor-pointer hover:underline">

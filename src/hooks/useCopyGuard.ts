@@ -35,8 +35,8 @@ export function useCopyGuard({ onViolation, enabled = true }: UseCopyGuardOption
         }
       }
 
-      // PrintScreen
-      if (e.key === "PrintScreen" || e.key === "F12") {
+      // PrintScreen / Snipping Tool shortcuts
+      if (e.key === "PrintScreen" || e.key === "F12" || ((ctrl || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s")) {
         e.preventDefault();
         onViolationRef.current("PRINT_SCREEN");
         // Clear clipboard immediately
